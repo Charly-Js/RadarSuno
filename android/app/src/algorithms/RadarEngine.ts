@@ -66,6 +66,19 @@ export default class RadarEngine {
 
         SensorService.start();
 
+        SoundService.start();
+
+        //Diagnostico
+
+        setTimeout(() => {
+
+            console.log(
+                "EstadoSonido:",
+                SoundService.getStatus()
+            );
+        }, 15000);
+
+
         // El sonido queda desactivado durante el arranque critico para evitar
         // cierres nativos mientras validamos el escaneo en dispositivo real.
 
