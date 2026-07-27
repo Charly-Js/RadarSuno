@@ -37,6 +37,14 @@ export default class WifiService {
 
     private static signalLevel = 0;
 
+    private static scanObservations: Array<{
+        ssid: string;
+        bssid: string;
+        frequency: number;
+        signalLevel: number;
+        lastSeen: number;
+    }> = [];
+
     /**
      * ==========================================================
      * ÚLTIMA ACTUALIZACIÓN
@@ -129,6 +137,24 @@ export default class WifiService {
 
         this.lastUpdate = Date.now();
 
+        if (this.connected && this.ssid) {
+            const bssid = this.bssid || `wifi-${this.ssid}`;
+            const observation = {
+                ssid: this.ssid,
+                bssid,
+                frequency: this.frequency,
+                signalLevel: this.signalLevel,
+                lastSeen: this.lastUpdate
+            };
+            const existing = this.scanObservations.find(item => item.bssid === bssid);
+
+            if (existing) {
+                Object.assign(existing, observation);
+            } else {
+                this.scanObservations.push(observation);
+            }
+        }
+
     }
 
         /**
@@ -182,6 +208,12 @@ export default class WifiService {
     static getSignalLevel(): number {
 
         return this.signalLevel;
+
+    }
+
+    static getObservedNetworks() {
+
+        return [...this.scanObservations];
 
     }
 
@@ -262,6 +294,8 @@ export default class WifiService {
         this.signalLevel = 0;
 
         this.lastUpdate = 0;
+
+        this.scanObservations = [];
 
     }
 

@@ -4,6 +4,7 @@ export default class SoundService {
     private static sound: Sound | null = null;
     private static loaded = false;
     private static lastPlayTime = 0;
+    private static loadError: string | null = null;
 
     static start(): void {
         if (this.sound) {
@@ -11,16 +12,31 @@ export default class SoundService {
         }
 
         Sound.setCategory("Playback");
+        this.loadError = null;
+        this.loaded = false;
 
-        this.sound = new Sound("radar_ping.mp3", Sound.MAIN_BUNDLE, (error) => {
+        this.loadSound(["radar_ping.mp3", "radar_ping"]);
+    }
+
+    private static loadSound(candidates: string[], index = 0): void {
+        const fileName = candidates[index];
+        this.sound = new Sound(fileName, Sound.MAIN_BUNDLE, (error) => {
             if (error) {
-                console.warn("SoundService: no se pudo cargar el sonido", error);
+                this.loadError = error.message;
                 this.sound = null;
+                if (index + 1 < candidates.length) {
+                    this.loadSound(candidates, index + 1);
+                    return;
+                }
+                console.warn("SoundService: no se pudo cargar el audio del radar", error);
                 return;
             }
             this.loaded = true;
             this.sound?.setNumberOfLoops(0);
-            this.sound?.setVolume(0.08);
+            this.sound?.setVolume(0.45);
+            this.sound?.play(() => {
+                this.sound?.stop();
+            });
         });
     }
 
@@ -61,6 +77,14 @@ export default class SoundService {
         this.lastPlayTime = 0;
     }
 
+    static getStatus() {
+        return {
+            loaded: this.loaded,
+            active: this.sound !== null,
+            loadError: this.loadError
+        };
+    }
+
     private static getInterval(distance: number | null): number {
         if (distance == null) {
             return 1400;
@@ -76,9 +100,9 @@ export default class SoundService {
 
     private static getVolume(distance: number | null): number {
         if (distance == null) {
-            return 0.08;
+            return 0.25;
         }
         const level = 1 - Math.min(distance / 20, 0.85);
-        return Math.max(0.08, Math.min(level, 1));
+        return Math.max(0.25, Math.min(level, 1));
     }
 }

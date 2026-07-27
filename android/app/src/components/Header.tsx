@@ -6,7 +6,11 @@ import {
     StyleSheet
 } from "react-native";
 
-export default function Header() {
+interface HeaderProps {
+    online?: boolean;
+}
+
+export default function Header({ online = false }: HeaderProps) {
 
     return (
 
@@ -30,11 +34,11 @@ export default function Header() {
 
             <View style={styles.statusContainer}>
 
-                <View style={styles.dot}/>
+                <View style={[styles.dot, online ? styles.dotOnline : styles.dotOffline]}/>
 
-                <Text style={styles.online}>
+                <Text style={[styles.online, online ? styles.textOnline : styles.textOffline]}>
 
-                    ONLINE
+                    {online ? "ONLINE" : "OFFLINE"}
 
                 </Text>
 
@@ -86,13 +90,23 @@ const styles = StyleSheet.create({
         width:10,
         height:10,
         borderRadius:5,
-        backgroundColor:"#00FF88",
         marginRight:8
+    },
+    dotOnline: {
+        backgroundColor:"#00FF88"
+    },
+    dotOffline: {
+        backgroundColor:"#64748B"
     },
 
     online:{
-        color:"#00FF88",
         fontWeight:"600"
+    },
+    textOnline: {
+        color:"#00FF88"
+    },
+    textOffline: {
+        color:"#94A3B8"
     }
 
 });

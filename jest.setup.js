@@ -68,23 +68,6 @@ jest.mock('react-native-wifi-reborn', () => ({
   getCurrentSignalStrength: jest.fn(() => Promise.resolve(-50)),
 }));
 
-jest.mock('react-native-maps', () => {
-  const React = require('react');
-  const {View} = require('react-native');
-  const MapView = props => React.createElement(View, props, props.children);
-  const Child = props => React.createElement(View, props, props.children);
-
-  return {
-    __esModule: true,
-    default: MapView,
-    Marker: Child,
-    Circle: Child,
-    Polyline: Child,
-    UrlTile: Child,
-    PROVIDER_GOOGLE: 'google',
-  };
-});
-
 jest.mock('react-native-webview', () => {
   const React = require('react');
   const {View} = require('react-native');
@@ -93,3 +76,8 @@ jest.mock('react-native-webview', () => {
     WebView: props => React.createElement(View, props, props.children),
   };
 });
+
+jest.mock('react-native-fs', () => ({
+  DocumentDirectoryPath: '/tmp',
+  writeFile: jest.fn(() => Promise.resolve()),
+}));

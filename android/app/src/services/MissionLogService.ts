@@ -1,8 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RadarTarget } from "../interfaces/RadarTarget";
 import { MissionOutcome, MissionRecord } from "../interfaces/MissionRecord";
+import { OperatorProfile } from "../interfaces/OperatorProfile";
 
 const STORAGE_KEY = "@RC:mission_records";
+const ACTIVE_STORAGE_KEY = "@RC:active_mission_backup";
 const MAX_RECORDS = 30;
 const MAX_SAMPLES = 900;
 
@@ -35,7 +37,11 @@ export default class MissionLogService {
         return this.activeRecord ? { ...this.activeRecord } : null;
     }
 
-    static async beginMission(): Promise<MissionRecord> {
+    static async beginMission(
+        operatorProfile: OperatorProfile | null,
+        rescueType: string,
+        pinnedTargetIds: string[] = []
+    ): Promise<MissionRecord> {
         await this.loadRecords();
 
         const startTime = Date.now();
@@ -43,6 +49,9 @@ export default class MissionLogService {
             id: `MISSION-${startTime}`,
             status: "running",
             outcome: null,
+            rescueType,
+            operatorProfile,
+            pinnedTargetIds,
             startTime,
             endTime: null,
             elapsedTime: 0,
@@ -53,6 +62,8 @@ export default class MissionLogService {
             notes: []
         };
 
+        await this.persistActiveBackup();
+
         return this.activeRecord;
     }
 
@@ -60,6 +71,7 @@ export default class MissionLogService {
         gps: any;
         sensors: any;
         targets: RadarTarget[];
+        pinnedTargetIds?: string[];
     }): void {
         if (!this.activeRecord) {
             return;
@@ -69,6 +81,9 @@ export default class MissionLogService {
         this.activeRecord.elapsedTime = timestamp - this.activeRecord.startTime;
         this.activeRecord.totalDistance = snapshot.gps?.totalDistance ?? this.activeRecord.totalDistance;
         this.activeRecord.targets = snapshot.targets.map(target => ({ ...target }));
+        if (snapshot.pinnedTargetIds) {
+            this.activeRecord.pinnedTargetIds = snapshot.pinnedTargetIds;
+        }
 
         const hasCoordinates =
             typeof snapshot.gps?.latitude === "number" &&
@@ -113,6 +128,21 @@ export default class MissionLogService {
         if (this.activeRecord.sensorSamples.length > MAX_SAMPLES) {
             this.activeRecord.sensorSamples.shift();
         }
+
+        this.persistActiveBackup().catch(() => {});
+    }
+
+    static async addNote(note: string): Promise<void> {
+        if (!this.activeRecord || !note.trim()) {
+            return;
+        }
+
+        const timestamp = new Date().toISOString();
+        this.activeRecord.notes = [
+            ...this.activeRecord.notes,
+            `${timestamp} | ${note.trim()}`
+        ];
+        await this.persistActiveBackup();
     }
 
     static async finishMission(outcome: MissionOutcome, note?: string): Promise<MissionRecord | null> {
@@ -135,6 +165,7 @@ export default class MissionLogService {
         this.records = [finishedRecord, ...this.records].slice(0, MAX_RECORDS);
         this.activeRecord = null;
         await this.persist();
+        await AsyncStorage.removeItem(ACTIVE_STORAGE_KEY);
 
         return finishedRecord;
     }
@@ -142,6 +173,17 @@ export default class MissionLogService {
     static async persist(): Promise<void> {
         try {
             await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.records));
+        } catch {
+        }
+    }
+
+    private static async persistActiveBackup(): Promise<void> {
+        if (!this.activeRecord) {
+            return;
+        }
+
+        try {
+            await AsyncStorage.setItem(ACTIVE_STORAGE_KEY, JSON.stringify(this.activeRecord));
         } catch {
         }
     }
@@ -160,6 +202,9 @@ export default class MissionLogService {
                 status: record.status,
                 outcome: record.outcome,
                 outcomeLabel,
+                rescueType: record.rescueType,
+                operator: record.operatorProfile,
+                pinnedTargetIds: record.pinnedTargetIds,
                 startTime: new Date(record.startTime).toISOString(),
                 endTime: record.endTime ? new Date(record.endTime).toISOString() : null,
                 elapsedSeconds: Math.round(record.elapsedTime / 1000),

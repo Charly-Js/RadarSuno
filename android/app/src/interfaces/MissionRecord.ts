@@ -1,4 +1,5 @@
 import { RadarTarget } from "./RadarTarget";
+import { OperatorProfile } from "./OperatorProfile";
 
 export type MissionOutcome = "completed" | "no_result" | "cancelled";
 
@@ -31,6 +32,9 @@ export interface MissionRecord {
     id: string;
     status: "running" | "finished";
     outcome: MissionOutcome | null;
+    rescueType: string;
+    operatorProfile: OperatorProfile | null;
+    pinnedTargetIds: string[];
     startTime: number;
     endTime: number | null;
     elapsedTime: number;

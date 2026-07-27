@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 
 import {
     View,
     StyleSheet,
     Text,
-    TouchableOpacity
+    TextInput,
+    TouchableOpacity,
+    ScrollView
 } from "react-native";
 
 import RadarView from "../components/RadarView";
@@ -23,6 +25,19 @@ interface RadarScreenProps {
     onStart: () => Promise<void>;
     onStop: (outcome?: MissionOutcome, note?: string) => Promise<void>;
     errorMessage: string;
+    rescueType: string;
+    focusedTargetId?: string | null;
+    onPinTarget?: (id: string) => void;
+    pinnedDestination?: {
+        latitude: number;
+        longitude: number;
+    } | null;
+    distanceToPinnedTarget?: number | null;
+    onSubmitRescueReport?: (report: string) => Promise<void>;
+    pinnedRoute?: Array<{
+        latitude: number;
+        longitude: number;
+    }>;
 }
 
 const RadarScreen: React.FC<RadarScreenProps> = ({
@@ -31,12 +46,30 @@ const RadarScreen: React.FC<RadarScreenProps> = ({
     running,
     onStart,
     onStop,
-    errorMessage
+    errorMessage,
+    rescueType,
+    focusedTargetId = null,
+    onPinTarget,
+    pinnedDestination = null,
+    distanceToPinnedTarget = null,
+    onSubmitRescueReport,
+    pinnedRoute = []
 }) => {
+    const [rescueReport, setRescueReport] = useState("");
     const orientation = status?.mission?.sensors?.azimuth ?? 0;
     const elapsedSeconds = Math.round((status?.mission?.elapsedTime ?? 0) / 1000);
     const gps = status?.mission?.gps;
     const sensors = status?.mission?.sensors;
+    const visibleRoute = pinnedRoute.length > 0 ? pinnedRoute : status?.mission?.gps?.route ?? [];
+    const shouldShowRescueForm = running && focusedTargetId && distanceToPinnedTarget != null && distanceToPinnedTarget <= 20;
+
+    const submitRescueReport = async () => {
+        if (!rescueReport.trim() || !onSubmitRescueReport) {
+            return;
+        }
+        await onSubmitRescueReport(rescueReport.trim());
+        setRescueReport("");
+    };
 
     return (
         <View style={styles.container}>
@@ -48,10 +81,13 @@ const RadarScreen: React.FC<RadarScreenProps> = ({
                         latitude: status.mission.gps.latitude,
                         longitude: status.mission.gps.longitude
                     } : null}
-                    route={status?.mission?.gps?.route ?? []}
+                    route={visibleRoute}
+                    destination={pinnedDestination}
+                    focusedTargetId={focusedTargetId}
+                    onPinTarget={onPinTarget}
                 />
             </View>
-            <View style={styles.actionPanel}>
+            <ScrollView style={styles.statsScroll} contentContainerStyle={styles.actionPanel}>
                 <View style={styles.missionStateCard}>
                     <View style={styles.missionStateHeader}>
                         <Text style={styles.missionStateTitle}>
@@ -66,6 +102,15 @@ const RadarScreen: React.FC<RadarScreenProps> = ({
                     </View>
                     <Text style={styles.missionStateText}>
                         Tiempo: {elapsedSeconds}s · Recorrido: {(gps?.totalDistance ?? 0).toFixed(1)} m
+                    </Text>
+                    <Text style={styles.missionStateText}>
+                        Tipo de rescate: {rescueType}
+                    </Text>
+                    <Text style={styles.missionStateText}>
+                        PIN: {focusedTargetId ? focusedTargetId : "Sin objetivo fijado"} · Ruta PIN: {pinnedRoute.length} puntos
+                    </Text>
+                    <Text style={styles.missionStateText}>
+                        Distancia al PIN: {distanceToPinnedTarget != null ? `${distanceToPinnedTarget.toFixed(1)} m` : "Sin destino calculado"}
                     </Text>
                     <Text style={styles.missionStateText} numberOfLines={1}>
                         GPS: {(gps?.latitude ?? 0).toFixed(6)}, {(gps?.longitude ?? 0).toFixed(6)} · Precisión {(gps?.accuracy ?? 0).toFixed(1)} m
@@ -97,20 +142,40 @@ const RadarScreen: React.FC<RadarScreenProps> = ({
                         <Text style={styles.actionText}>Iniciar misión</Text>
                     </TouchableOpacity>
                 )}
+                {shouldShowRescueForm ? (
+                    <View style={styles.rescueCard}>
+                        <Text style={styles.rescueTitle}>Rescate en sitio</Text>
+                        <Text style={styles.rescueText}>Objetivo cercano. Registre el estado antes de continuar.</Text>
+                        <TextInput
+                            style={styles.rescueInput}
+                            value={rescueReport}
+                            onChangeText={setRescueReport}
+                            placeholder="Estado de la víctima, equipo usado, acción tomada..."
+                            placeholderTextColor="#64748B"
+                            multiline
+                        />
+                        <TouchableOpacity
+                            style={[styles.actionButton, styles.rescueButton]}
+                            onPress={submitRescueReport}
+                        >
+                            <Text style={styles.actionText}>Guardar reporte</Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : null}
                 {errorMessage ? (
                     <Text style={styles.errorText} numberOfLines={2}>{errorMessage}</Text>
                 ) : null}
-            </View>
-            <StatusBarPanel
-                gps={missionStatus?.gps ?? false}
-                ble={missionStatus?.bluetooth ?? false}
-                wifi={missionStatus?.wifi ?? false}
-                sensors={status?.mission?.sensors?.running ?? false}
-            />
-            <BottomPanel
-                targetCount={status?.targets?.length ?? 0}
-                nearestTarget={status?.nearestTarget ?? null}
-            />
+                <StatusBarPanel
+                    gps={missionStatus?.gps ?? false}
+                    ble={missionStatus?.bluetooth ?? false}
+                    wifi={missionStatus?.wifi ?? false}
+                    sensors={status?.mission?.sensors?.running ?? false}
+                />
+                <BottomPanel
+                    targetCount={status?.targets?.length ?? 0}
+                    nearestTarget={status?.nearestTarget ?? null}
+                />
+            </ScrollView>
         </View>
     );
 };
@@ -129,8 +194,8 @@ const styles = StyleSheet.create({
 
     radarContainer: {
 
-        flex: 1.8,
-        minHeight: 340,
+        flex: 4,
+        minHeight: 420,
 
         justifyContent: "center",
 
@@ -138,11 +203,16 @@ const styles = StyleSheet.create({
 
     },
 
+    statsScroll: {
+        flex: 1,
+        minHeight: 0
+    },
+
     actionPanel: {
 
         paddingHorizontal: 16,
 
-        paddingBottom: 6
+        paddingBottom: 14
 
     },
 
@@ -269,6 +339,72 @@ const styles = StyleSheet.create({
     noResultButton: {
 
         backgroundColor: "#F59E0B"
+
+    },
+
+    rescueCard: {
+
+        backgroundColor: "#082F49",
+
+        borderColor: "#38BDF8",
+
+        borderWidth: 1,
+
+        borderRadius: 8,
+
+        padding: 10,
+
+        marginTop: 10
+
+    },
+
+    rescueTitle: {
+
+        color: "#E0F2FE",
+
+        fontSize: 13,
+
+        fontWeight: "800"
+
+    },
+
+    rescueText: {
+
+        color: "#BAE6FD",
+
+        fontSize: 11,
+
+        marginTop: 3
+
+    },
+
+    rescueInput: {
+
+        minHeight: 70,
+
+        marginTop: 8,
+
+        borderRadius: 8,
+
+        borderWidth: 1,
+
+        borderColor: "#0EA5E9",
+
+        color: "#FFFFFF",
+
+        paddingHorizontal: 10,
+
+        paddingVertical: 8,
+
+        textAlignVertical: "top"
+
+    },
+
+    rescueButton: {
+
+        backgroundColor: "#0284C7",
+
+        marginTop: 8
 
     },
 

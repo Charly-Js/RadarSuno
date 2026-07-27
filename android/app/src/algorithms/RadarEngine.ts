@@ -91,14 +91,10 @@ export default class RadarEngine {
     private static update(): void {
 
         this.updateBluetoothTargets();
+        this.updateWifiTargets();
 
         const nearestTarget = this.getNearestTarget();
         SoundService.update(nearestTarget?.estimatedDistance ?? null);
-
-        // Próximamente:
-        // this.updateWifiTargets();
-        // this.mergeTargets();
-        // this.calculateConfidence();
 
     }
 
@@ -122,7 +118,8 @@ export default class RadarEngine {
                 target.bluetooth?.id === device.id
             );
 
-            const distance = BluetoothService.getEstimatedDistance(device.id) ?? 0;
+            const rssi = device.rssi ?? -100;
+            const distance = BluetoothService.getStableDistance(device.id) ?? BluetoothService.getEstimatedDistance(device.id) ?? 0;
             const deviceName = this.getBluetoothDeviceName(device, existing?.name);
 
             if (existing) {
@@ -131,7 +128,7 @@ export default class RadarEngine {
 
                 existing.observations++;
 
-                existing.signalStrength = Math.abs(device.rssi ?? -100);
+                existing.signalStrength = this.normalizeRssi(rssi);
 
                 existing.estimatedDistance = distance;
 
@@ -141,7 +138,7 @@ export default class RadarEngine {
 
                     name: deviceName,
 
-                    rssi: device.rssi ?? -100
+                    rssi
 
                 };
 
@@ -163,7 +160,7 @@ export default class RadarEngine {
 
                 observations: 1,
 
-                signalStrength: Math.abs(device.rssi ?? -100),
+                signalStrength: this.normalizeRssi(rssi),
 
                 confidence: 50,
 
@@ -178,7 +175,7 @@ export default class RadarEngine {
 
                     name: deviceName,
 
-                    rssi: device.rssi ?? -100
+                    rssi
 
                 },
 
@@ -212,6 +209,80 @@ export default class RadarEngine {
 
     }
 
+    private static updateWifiTargets(): void {
+
+        const networks = WifiService.getObservedNetworks();
+        const location = GPSService.getMissionCoordinates();
+        const orientation = SensorService.getOrientation();
+
+        networks.forEach(network => {
+            const id = `wifi-${network.bssid || network.ssid}`;
+            const existing = this.targets.find(target => target.id === id);
+            const signalStrength = this.normalizeRssi(network.signalLevel || -100);
+            const distance = this.estimateWifiDistance(network.signalLevel || -100);
+            const name = network.ssid || `WiFi ${network.bssid.slice(-5).toUpperCase()}`;
+
+            if (existing) {
+                existing.lastSeen = network.lastSeen;
+                existing.observations++;
+                existing.signalStrength = signalStrength;
+                existing.estimatedDistance = distance;
+                existing.heading = orientation.azimuth;
+                existing.source = existing.bluetooth ? "hybrid" : "wifi";
+                existing.name = existing.bluetooth?.name || name;
+                existing.wifi = {
+                    ssid: name,
+                    bssid: network.bssid,
+                    signalLevel: network.signalLevel,
+                    frequency: network.frequency
+                };
+                existing.location = {
+                    latitude: location?.latitude ?? existing.location.latitude,
+                    longitude: location?.longitude ?? existing.location.longitude,
+                    accuracy: location?.accuracy ?? existing.location.accuracy
+                };
+                existing.orientation = {
+                    azimuth: orientation.azimuth,
+                    pitch: orientation.pitch,
+                    roll: orientation.roll
+                };
+                existing.active = true;
+                return;
+            }
+
+            this.targets.push({
+                id,
+                name,
+                firstSeen: network.lastSeen,
+                lastSeen: network.lastSeen,
+                observations: 1,
+                signalStrength,
+                confidence: 42,
+                estimatedDistance: distance,
+                heading: orientation.azimuth,
+                source: "wifi",
+                wifi: {
+                    ssid: name,
+                    bssid: network.bssid,
+                    signalLevel: network.signalLevel,
+                    frequency: network.frequency
+                },
+                location: {
+                    latitude: location?.latitude ?? 0,
+                    longitude: location?.longitude ?? 0,
+                    accuracy: location?.accuracy ?? 0
+                },
+                orientation: {
+                    azimuth: orientation.azimuth,
+                    pitch: orientation.pitch,
+                    roll: orientation.roll
+                },
+                active: true
+            });
+        });
+
+    }
+
     private static getBluetoothDeviceName(
         device: any,
         fallback?: string
@@ -230,6 +301,30 @@ export default class RadarEngine {
         }
 
         return `BLE ${device.id.slice(-5).toUpperCase()}`;
+
+    }
+
+    private static normalizeRssi(rssi: number): number {
+
+        return Math.max(0, Math.min(100, Math.round(((rssi + 100) / 60) * 100)));
+
+    }
+
+    private static estimateWifiDistance(rssi: number): number {
+
+        if (rssi >= -45) {
+            return 2;
+        }
+        if (rssi >= -60) {
+            return 8;
+        }
+        if (rssi >= -70) {
+            return 18;
+        }
+        if (rssi >= -80) {
+            return 35;
+        }
+        return 60;
 
     }
 

@@ -9,6 +9,7 @@ import TriangulationEngine from "../algorithms/TriangulationEngine";
 import TargetFusionEngine from "../algorithms/TargetFusionEngine";
 import MissionLogService from "../services/MissionLogService";
 import { MissionOutcome } from "../interfaces/MissionRecord";
+import { OperatorProfile } from "../interfaces/OperatorProfile";
 
 export default class MissionEngine {
 
@@ -47,7 +48,17 @@ export default class MissionEngine {
      * ==========================================================
      */
 
-    static async startMission(): Promise<void> {
+    private static pinnedTargetIds: string[] = [];
+
+    static setPinnedTargets(ids: string[]): void {
+        this.pinnedTargetIds = ids;
+    }
+
+    static async startMission(
+        operatorProfile: OperatorProfile | null = null,
+        rescueType: string = "No especificado",
+        pinnedTargetIds: string[] = []
+    ): Promise<void> {
 
         if (this.running) {
 
@@ -63,7 +74,9 @@ export default class MissionEngine {
 
         await RadarEngine.start();
 
-        await MissionLogService.beginMission();
+        this.pinnedTargetIds = pinnedTargetIds;
+
+        await MissionLogService.beginMission(operatorProfile, rescueType, pinnedTargetIds);
 
         HeatMapEngine.start();
 
@@ -77,7 +90,8 @@ export default class MissionEngine {
             MissionLogService.recordSnapshot({
                 gps: GPSService.getStatus(),
                 sensors: SensorService.getStatus(),
-                targets: RadarEngine.getTargets()
+                targets: RadarEngine.getTargets(),
+                pinnedTargetIds: this.pinnedTargetIds
             });
         }, this.UPDATE_RATE);
 
@@ -119,7 +133,8 @@ export default class MissionEngine {
         MissionLogService.recordSnapshot({
             gps: GPSService.getStatus(),
             sensors: SensorService.getStatus(),
-            targets: RadarEngine.getTargets()
+            targets: RadarEngine.getTargets(),
+            pinnedTargetIds: this.pinnedTargetIds
         });
 
         await MissionLogService.finishMission(outcome, note);

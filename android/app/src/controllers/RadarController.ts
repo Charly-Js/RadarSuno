@@ -5,6 +5,7 @@ import TargetFusionEngine from "../algorithms/TargetFusionEngine";
 import MissionEngine from "../mission/MissionEngine";
 import MissionLogService from "../services/MissionLogService";
 import { MissionOutcome } from "../interfaces/MissionRecord";
+import { OperatorProfile } from "../interfaces/OperatorProfile";
 
 export default class RadarController {
 
@@ -14,10 +15,18 @@ export default class RadarController {
      * ==========================================================
      */
 
-    static async start(): Promise<void> {
+    static async start(
+        operatorProfile: OperatorProfile | null = null,
+        rescueType: string = "No especificado",
+        pinnedTargetIds: string[] = []
+    ): Promise<void> {
 
-        await MissionEngine.startMission();
+        await MissionEngine.startMission(operatorProfile, rescueType, pinnedTargetIds);
 
+    }
+
+    static setPinnedTargets(ids: string[]): void {
+        MissionEngine.setPinnedTargets(ids);
     }
 
     /**
@@ -32,6 +41,12 @@ export default class RadarController {
     ): Promise<void> {
 
         await MissionEngine.stopMission(outcome, note);
+
+    }
+
+    static async addMissionNote(note: string): Promise<void> {
+
+        await MissionLogService.addNote(note);
 
     }
 

@@ -11,16 +11,39 @@ import CallsScreen from "../screens/CallsScreen";
 import TermsScreen from "../screens/TermsScreen";
 import PermissionScreen from "../screens/PermissionScreen";
 import HistoryScreen from "../screens/HistoryScreen";
+import OperatorSetupScreen from "../screens/OperatorSetupScreen";
 import { PermissionService } from "../services/PermissionService";
 import MissionLogService from "../services/MissionLogService";
+import MissionPdfService from "../services/MissionPdfService";
+import { GPSService } from "../services/GPSService";
 import { MissionOutcome, MissionRecord } from "../interfaces/MissionRecord";
 import { RadarTarget } from "../interfaces/RadarTarget";
+import { OperatorProfile } from "../interfaces/OperatorProfile";
 
 type ScreenKey = "radar" | "devices" | "history" | "calls" | "terms";
 
 const IGNORED_IDS_KEY = "@RC:ignored_target_ids";
 const IGNORED_TARGETS_KEY = "@RC:ignored_target_records";
 const PINNED_IDS_KEY = "@RC:pinned_target_ids";
+const TERMS_ACCEPTED_KEY = "@RC:terms_accepted";
+const OPERATOR_PROFILE_KEY = "@RC:operator_profile";
+
+const calculateDistanceMeters = (
+    from: { latitude: number; longitude: number },
+    to: { latitude: number; longitude: number }
+) => {
+    const earthRadius = 6371000;
+    const dLat = (to.latitude - from.latitude) * Math.PI / 180;
+    const dLon = (to.longitude - from.longitude) * Math.PI / 180;
+    const lat1 = from.latitude * Math.PI / 180;
+    const lat2 = to.latitude * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1) * Math.cos(lat2) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+    return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
 
 const RadarApp = () => {
     const [status, setStatus] = useState(RadarController.getStatus());
@@ -33,6 +56,9 @@ const RadarApp = () => {
     const [ignoredIds, setIgnoredIds] = useState<string[]>([]);
     const [ignoredTargetRecords, setIgnoredTargetRecords] = useState<RadarTarget[]>([]);
     const [missionRecords, setMissionRecords] = useState<MissionRecord[]>([]);
+    const [termsAccepted, setTermsAccepted] = useState(false);
+    const [operatorProfile, setOperatorProfile] = useState<OperatorProfile | null>(null);
+    const [bootLoaded, setBootLoaded] = useState(false);
 
     const refreshStatus = () => {
         setStatus(RadarController.getStatus());
@@ -46,12 +72,16 @@ const RadarApp = () => {
             await PermissionService.rememberActiveServices();
         }
         setPermissionsGranted(currentStatus.permissions);
+        if (currentStatus.permissions) {
+            GPSService.startTracking().catch(() => {});
+            GPSService.getLocation().catch(() => {});
+        }
         return currentStatus;
     };
 
     const handleTogglePin = (id: string) => {
         setPinnedIds(prev =>
-            prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+            prev.includes(id) ? [] : [id]
         );
     };
 
@@ -144,13 +174,15 @@ const RadarApp = () => {
 
     const handleExportMission = async (record: MissionRecord) => {
         try {
+            const pdfUrl = await MissionPdfService.exportRecord(record);
             await Share.share({
                 title: `RadarSuRo - Registro ${record.id}`,
-                message: MissionLogService.createExportText(record)
+                message: MissionLogService.createExportText(record),
+                url: pdfUrl
             });
         } catch (error) {
             console.error("Mission export error", error);
-            setErrorMessage("No se pudo compartir el registro de misión.");
+            setErrorMessage("No se pudo generar o compartir el PDF de misión.");
         }
     };
 
@@ -164,6 +196,12 @@ const RadarApp = () => {
     useEffect(() => {
         refreshStatus();
         (async () => {
+            const [termsRaw, operatorRaw] = await Promise.all([
+                AsyncStorage.getItem(TERMS_ACCEPTED_KEY),
+                AsyncStorage.getItem(OPERATOR_PROFILE_KEY)
+            ]);
+            setTermsAccepted(termsRaw === "true");
+            setOperatorProfile(operatorRaw ? JSON.parse(operatorRaw) : null);
             await refreshMissionStatus();
             setMissionRecords(await RadarController.loadMissionRecords());
             try {
@@ -180,6 +218,8 @@ const RadarApp = () => {
                 setIgnoredIds([]);
                 setIgnoredTargetRecords([]);
                 setPinnedIds([]);
+            } finally {
+                setBootLoaded(true);
             }
         })();
         const interval = setInterval(() => {
@@ -199,7 +239,18 @@ const RadarApp = () => {
 
     useEffect(() => {
         AsyncStorage.setItem(PINNED_IDS_KEY, JSON.stringify(pinnedIds)).catch(() => {});
+        RadarController.setPinnedTargets(pinnedIds);
     }, [pinnedIds]);
+
+    const handleAcceptTerms = async () => {
+        await AsyncStorage.setItem(TERMS_ACCEPTED_KEY, "true");
+        setTermsAccepted(true);
+    };
+
+    const handleSaveOperatorProfile = async (profile: OperatorProfile) => {
+        await AsyncStorage.setItem(OPERATOR_PROFILE_KEY, JSON.stringify(profile));
+        setOperatorProfile(profile);
+    };
 
     const handleStart = async () => {
         try {
@@ -212,7 +263,11 @@ const RadarApp = () => {
                 );
                 return;
             }
-            await RadarController.start();
+            if (!operatorProfile) {
+                setErrorMessage("Debe registrar el operador antes de iniciar misión.");
+                return;
+            }
+            await RadarController.start(operatorProfile, operatorProfile.rescueType, pinnedIds);
             refreshStatus();
         } catch (error) {
             console.error("RadarApp: start error", error);
@@ -233,10 +288,51 @@ const RadarApp = () => {
         refreshStatus();
     };
 
+    const handleSubmitRescueReport = async (report: string) => {
+        await RadarController.addMissionNote(`Reporte de rescate en sitio: ${report}`);
+        setErrorMessage("Reporte de rescate guardado en el registro local.");
+        refreshStatus();
+    };
+
     const currentTargets = status?.targets ?? [];
     const visibleTargets = currentTargets.filter(target => !ignoredIds.includes(target.id));
     const activeTargets = visibleTargets.filter(target => target.active);
     const pinnedTargets = visibleTargets.filter(target => pinnedIds.includes(target.id));
+    const pinnedRoute = (status?.heatMap ?? [])
+        .filter(point => pinnedIds.includes(point.targetId))
+        .slice(-120)
+        .map(point => ({
+            latitude: point.latitude,
+            longitude: point.longitude
+        }))
+        .filter(point => point.latitude !== 0 || point.longitude !== 0);
+    const pinnedHeatPoints = (status?.heatMap ?? [])
+        .filter(point =>
+            pinnedIds.includes(point.targetId) &&
+            point.latitude !== 0 &&
+            point.longitude !== 0
+        );
+    const pinnedDestinationPoint = pinnedHeatPoints.reduce<any | null>(
+        (best, point) =>
+            !best || point.signalStrength > best.signalStrength || (
+                point.signalStrength === best.signalStrength &&
+                point.timestamp > best.timestamp
+            )
+                ? point
+                : best,
+        null
+    );
+    const pinnedDestination = pinnedDestinationPoint ? {
+        latitude: pinnedDestinationPoint.latitude,
+        longitude: pinnedDestinationPoint.longitude
+    } : null;
+    const currentLocation = status?.mission?.gps?.latitude && status?.mission?.gps?.longitude ? {
+        latitude: status.mission.gps.latitude,
+        longitude: status.mission.gps.longitude
+    } : null;
+    const distanceToPinnedTarget = currentLocation && pinnedDestination
+        ? calculateDistanceMeters(currentLocation, pinnedDestination)
+        : null;
     const ignoredTargets = [
         ...currentTargets.filter(target => ignoredIds.includes(target.id)),
         ...ignoredTargetRecords.filter(record =>
@@ -296,11 +392,42 @@ const RadarApp = () => {
                         onStart={handleStart}
                         onStop={handleStop}
                         errorMessage={errorMessage}
+                        rescueType={operatorProfile?.rescueType ?? "No registrado"}
+                        focusedTargetId={pinnedIds[0] ?? null}
+                        onPinTarget={handleTogglePin}
+                        pinnedDestination={pinnedDestination}
+                        distanceToPinnedTarget={distanceToPinnedTarget}
+                        onSubmitRescueReport={handleSubmitRescueReport}
+                        pinnedRoute={pinnedRoute}
                     />
                 );
             }
         }
     };
+
+    if (!bootLoaded) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <Text style={styles.loadingText}>Cargando RadarSuRo...</Text>
+            </SafeAreaView>
+        );
+    }
+
+    if (!termsAccepted) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <TermsScreen onAccept={handleAcceptTerms} accepted={termsAccepted} />
+            </SafeAreaView>
+        );
+    }
+
+    if (!operatorProfile) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <OperatorSetupScreen onSave={handleSaveOperatorProfile} />
+            </SafeAreaView>
+        );
+    }
 
     if (!permissionsGranted) {
         return (
@@ -316,7 +443,7 @@ const RadarApp = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <Header />
+            <Header online={running} />
             <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -393,6 +520,13 @@ const styles = StyleSheet.create({
     screenContainer: {
         flex: 1,
         minHeight: 0
+    },
+    loadingText: {
+        color: "#E5E7EB",
+        textAlign: "center",
+        marginTop: 80,
+        fontSize: 16,
+        fontWeight: "700"
     }
 });
 
