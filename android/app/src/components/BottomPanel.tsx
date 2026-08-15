@@ -13,17 +13,42 @@ interface BottomPanelProps {
     nearestTarget?: RadarTarget | null;
 }
 
+const formatDistance = (meters: number): string => {
+    if (meters < 1) {
+        return `≈ ${Math.max(10, Math.round(meters * 100))} cm`;
+    }
+
+    if (meters < 10) {
+        return `≈ ${meters.toFixed(1)} m`;
+    }
+
+    return `≈ ${Math.round(meters)} m`;
+};
+
+const formatProximity = (target: RadarTarget | null): string => {
+    switch (target?.proximity) {
+        case "very_near":
+            return "MUY CERCA";
+        case "near":
+            return "CERCA";
+        case "medium":
+            return "MEDIO";
+        case "far":
+            return "LEJOS";
+        default:
+            return "N/A";
+    }
+};
+
 export default function BottomPanel({
     targetCount = 0,
     nearestTarget = null
 }: BottomPanelProps) {
     const distance = nearestTarget?.estimatedDistance != null
-        ? `${nearestTarget.estimatedDistance.toFixed(1)} m`
+        ? formatDistance(nearestTarget.estimatedDistance)
         : "N/A";
 
-    const direction = nearestTarget?.heading != null
-        ? `${nearestTarget.heading.toFixed(0)}°`
-        : "N/A";
+    const proximity = formatProximity(nearestTarget);
 
     const rssi = nearestTarget?.bluetooth?.rssi != null
         ? `${nearestTarget.bluetooth.rssi} dBm`
@@ -40,7 +65,7 @@ export default function BottomPanel({
                 <RadarCard title="Distancia" value={distance} />
             </View>
             <View style={styles.cardSlot}>
-                <RadarCard title="Dirección" value={direction} />
+                <RadarCard title="Proximidad" value={proximity} />
             </View>
             <View style={styles.cardSlot}>
                 <RadarCard title="RSSI" value={rssi} />

@@ -58,6 +58,28 @@ export interface RadarTarget {
     heading: number;
 
     /**
+     * Bearing relativo observado al operador cuando la señal fue más fuerte.
+     * No es una coordenada física real del emisor; es una pista operativa
+     * derivada de RSSI + orientación.
+     */
+    relativeBearing?: number;
+
+    /**
+     * Calidad del bearing estimado.
+     */
+    bearingAccuracy?: "unknown" | "observed";
+
+    /**
+     * Etiqueta legible para comunicar que la distancia es aproximada.
+     */
+    distanceLabel?: string;
+
+    /**
+     * Estado de proximidad derivado de estimatedDistance.
+     */
+    proximity?: "far" | "medium" | "near" | "very_near";
+
+    /**
      * Tecnología utilizada para detectarlo
      */
     source: "bluetooth" | "wifi" | "hybrid";

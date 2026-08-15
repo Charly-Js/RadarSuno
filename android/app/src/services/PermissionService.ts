@@ -5,6 +5,9 @@ import WifiService from './WifiService';
 import { GPSService } from './GPSService';
 
 type AndroidPermission = Parameters<typeof PermissionsAndroid.requestMultiple>[0][number];
+const NEARBY_WIFI_DEVICES_PERMISSION = 'android.permission.NEARBY_WIFI_DEVICES' as AndroidPermission;
+const POST_NOTIFICATIONS_PERMISSION = 'android.permission.POST_NOTIFICATIONS' as AndroidPermission;
+const READ_MEDIA_IMAGES_PERMISSION = 'android.permission.READ_MEDIA_IMAGES' as AndroidPermission;
 
 const STORAGE_KEYS = {
     bluetooth: '@RC:activation:bluetooth',
@@ -29,7 +32,8 @@ export class PermissionService {
     private static getRequiredPermissions(): AndroidPermission[] {
         const permissions: AndroidPermission[] = [
             PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-            PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION
+            PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+            PermissionsAndroid.PERMISSIONS.CAMERA
         ];
 
         if (this.getAndroidApiLevel() >= 31) {
@@ -37,6 +41,19 @@ export class PermissionService {
                 PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
                 PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT
             );
+        }
+
+        if (this.getAndroidApiLevel() >= 33) {
+            permissions.push(
+                NEARBY_WIFI_DEVICES_PERMISSION,
+                POST_NOTIFICATIONS_PERMISSION,
+                READ_MEDIA_IMAGES_PERMISSION
+            );
+        } else {
+            permissions.push(PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE);
+            if (this.getAndroidApiLevel() <= 28) {
+                permissions.push(PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE);
+            }
         }
 
         return permissions;
@@ -71,6 +88,8 @@ export class PermissionService {
             const locationGranted =
                 requiredResult[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] === PermissionsAndroid.RESULTS.GRANTED ||
                 requiredResult[PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION] === PermissionsAndroid.RESULTS.GRANTED;
+            const cameraGranted =
+                requiredResult[PermissionsAndroid.PERMISSIONS.CAMERA] === PermissionsAndroid.RESULTS.GRANTED;
 
             const bluetoothGranted =
                 this.getAndroidApiLevel() >= 31
@@ -78,7 +97,22 @@ export class PermissionService {
                       requiredResult[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] === PermissionsAndroid.RESULTS.GRANTED
                     : true;
 
-            const requiredGranted = locationGranted && bluetoothGranted;
+            const nearbyWifiGranted =
+                this.getAndroidApiLevel() >= 33
+                    ? requiredResult[NEARBY_WIFI_DEVICES_PERMISSION] === PermissionsAndroid.RESULTS.GRANTED
+                    : true;
+            const notificationsGranted =
+                this.getAndroidApiLevel() >= 33
+                    ? requiredResult[POST_NOTIFICATIONS_PERMISSION] === PermissionsAndroid.RESULTS.GRANTED
+                    : true;
+            const storageGranted =
+                this.getAndroidApiLevel() >= 33
+                    ? requiredResult[READ_MEDIA_IMAGES_PERMISSION] === PermissionsAndroid.RESULTS.GRANTED
+                    : requiredResult[PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE] === PermissionsAndroid.RESULTS.GRANTED &&
+                      (this.getAndroidApiLevel() > 28 ||
+                       requiredResult[PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE] === PermissionsAndroid.RESULTS.GRANTED);
+
+            const requiredGranted = locationGranted && bluetoothGranted && nearbyWifiGranted && cameraGranted && notificationsGranted && storageGranted;
 
             if (!requiredGranted) {
                 console.warn("PermissionService: Required permissions missing.");
@@ -108,6 +142,19 @@ export class PermissionService {
         }
 
         const locationGranted = await this.hasLocationPermissions();
+        const cameraGranted = await PermissionsAndroid.check(
+            PermissionsAndroid.PERMISSIONS.CAMERA
+        );
+        const notificationsGranted =
+            this.getAndroidApiLevel() >= 33
+                ? await PermissionsAndroid.check(POST_NOTIFICATIONS_PERMISSION)
+                : true;
+        const storageGranted =
+            this.getAndroidApiLevel() >= 33
+                ? await PermissionsAndroid.check(READ_MEDIA_IMAGES_PERMISSION)
+                : await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE) &&
+                  (this.getAndroidApiLevel() > 28 ||
+                   await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE));
 
         if (this.getAndroidApiLevel() >= 31) {
             const scanGranted = await PermissionsAndroid.check(
@@ -116,11 +163,43 @@ export class PermissionService {
             const connectGranted = await PermissionsAndroid.check(
                 PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT
             );
-            return locationGranted && scanGranted && connectGranted;
+            if (this.getAndroidApiLevel() >= 33) {
+                const nearbyWifiGranted = await PermissionsAndroid.check(
+                    NEARBY_WIFI_DEVICES_PERMISSION
+                );
+                return locationGranted && scanGranted && connectGranted && nearbyWifiGranted && cameraGranted && notificationsGranted && storageGranted;
+            }
+
+            return locationGranted && scanGranted && connectGranted && cameraGranted && notificationsGranted && storageGranted;
         }
 
-        return locationGranted;
+        return locationGranted && cameraGranted && notificationsGranted && storageGranted;
 
+    }
+
+    static async getPermissionDetails() {
+        const details: Record<string, boolean> = {
+            fineLocation: await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION),
+            coarseLocation: await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION),
+            camera: await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.CAMERA)
+        };
+
+        if (this.getAndroidApiLevel() >= 31) {
+            details.bluetoothScan = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN);
+            details.bluetoothConnect = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT);
+        }
+
+        if (this.getAndroidApiLevel() >= 33) {
+            details.nearbyWifiDevices = await PermissionsAndroid.check(NEARBY_WIFI_DEVICES_PERMISSION);
+            details.notifications = await PermissionsAndroid.check(POST_NOTIFICATIONS_PERMISSION);
+            details.mediaImages = await PermissionsAndroid.check(READ_MEDIA_IMAGES_PERMISSION);
+        } else {
+            details.readStorage = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE);
+            details.writeStorage = this.getAndroidApiLevel() > 28 ||
+                await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE);
+        }
+
+        return details;
     }
 
     static async getStoredActivation(key: keyof typeof STORAGE_KEYS): Promise<boolean> {
@@ -190,6 +269,7 @@ export class PermissionService {
         const rememberedBluetooth = await this.getStoredActivation('bluetooth');
         const rememberedWifi = await this.getStoredActivation('wifi');
         const rememberedGps = await this.getStoredActivation('gps');
+        const details = await this.getPermissionDetails();
 
         const scanReady = bluetooth || wifi;
         const ready = permissions && gps && scanReady;
@@ -197,6 +277,8 @@ export class PermissionService {
         return {
 
             permissions,
+
+            permissionDetails: details,
 
             bluetooth,
 

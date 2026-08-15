@@ -2,6 +2,8 @@ import {
     accelerometer,
     magnetometer,
     gyroscope,
+    SensorTypes,
+    setUpdateIntervalForType
     
 } from "react-native-sensors";
 
@@ -100,6 +102,12 @@ export default class SensorService {
     private static moving = false;
 
     private static lastMovement = 0;
+
+    private static readonly SENSOR_INTERVAL_MS = 250;
+
+    private static azimuthReady = false;
+
+    private static readonly AZIMUTH_SMOOTHING = 0.22;
 
     /**
      * ==========================================================
@@ -234,10 +242,18 @@ export default class SensorService {
 
     private static startSensors(): void {
 
+        try {
+            setUpdateIntervalForType(SensorTypes.accelerometer, this.SENSOR_INTERVAL_MS);
+            setUpdateIntervalForType(SensorTypes.magnetometer, this.SENSOR_INTERVAL_MS);
+            setUpdateIntervalForType(SensorTypes.gyroscope, this.SENSOR_INTERVAL_MS);
+        } catch {
+        }
+
         this.startAccelerometer();
 
-        // Algunos dispositivos cierran la app al activar magnetometro/giroscopio.
-        // Para iniciar el escaneo de forma estable usamos primero el acelerometro.
+        this.startMagnetometer();
+
+        this.startGyroscope();
 
     }
 
@@ -251,6 +267,16 @@ export default class SensorService {
 
         const { x, y } = this.magneticField;
 
+        const hasMagneticReading =
+            Math.abs(x) > 0.001 ||
+            Math.abs(y) > 0.001 ||
+            Math.abs(this.magneticField.z) > 0.001;
+
+        if (!hasMagneticReading) {
+            this.updatePitchAndRoll();
+            return;
+        }
+
         let heading = Math.atan2(y, x) * (180 / Math.PI);
 
         if (heading < 0) {
@@ -259,7 +285,26 @@ export default class SensorService {
 
         }
 
-        this.azimuth = heading;
+        this.azimuth = this.azimuthReady
+            ? this.smoothDegrees(this.azimuth, heading)
+            : heading;
+        this.azimuthReady = true;
+
+        this.updatePitchAndRoll();
+
+    }
+
+    private static smoothDegrees(
+        previous: number,
+        next: number
+    ): number {
+
+        const delta = ((next - previous + 540) % 360) - 180;
+        return (previous + delta * this.AZIMUTH_SMOOTHING + 360) % 360;
+
+    }
+
+    private static updatePitchAndRoll(): void {
 
         this.pitch = Math.atan2(
             this.acceleration.x,
@@ -346,7 +391,9 @@ export default class SensorService {
 
             pitch: this.pitch,
 
-            roll: this.roll
+            roll: this.roll,
+
+            azimuthReady: this.azimuthReady
 
         };
 
@@ -495,7 +542,9 @@ export default class SensorService {
 
             magnetometer: this.magnetometerSubscription !== null,
 
-            gyroscope: this.gyroscopeSubscription !== null
+            gyroscope: this.gyroscopeSubscription !== null,
+
+            azimuthReady: this.azimuthReady
 
         };
 
@@ -572,6 +621,8 @@ export default class SensorService {
         this.moving = false;
 
         this.lastMovement = 0;
+
+        this.azimuthReady = false;
 
     }
 

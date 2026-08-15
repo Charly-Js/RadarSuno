@@ -1,6 +1,8 @@
 import {
     BleManager,
     Device,
+    ScanCallbackType,
+    ScanMode,
     State,
     Subscription
 } from "react-native-ble-plx";
@@ -161,7 +163,10 @@ export class BluetoothService {
                 null,
 
                 {
-                    allowDuplicates: true
+                    allowDuplicates: true,
+                    callbackType: ScanCallbackType.AllMatches,
+                    legacyScan: false,
+                    scanMode: ScanMode.LowLatency
                 },
 
                 (error, device) => {

@@ -77,7 +77,30 @@ jest.mock('react-native-webview', () => {
   };
 });
 
+jest.mock('react-native-maps', () => {
+  const React = require('react');
+  const {View} = require('react-native');
+  const MapView = props => React.createElement(View, props, props.children);
+  const Child = props => React.createElement(View, props, props.children);
+
+  return {
+    __esModule: true,
+    default: MapView,
+    Marker: Child,
+    Circle: Child,
+    Polyline: Child,
+    UrlTile: Child,
+    PROVIDER_GOOGLE: 'google',
+  };
+}, {virtual: true});
+
+jest.mock('react-native-image-picker', () => ({
+  launchCamera: jest.fn(() => Promise.resolve({didCancel: true})),
+}));
+
 jest.mock('react-native-fs', () => ({
   DocumentDirectoryPath: '/tmp',
+  mkdir: jest.fn(() => Promise.resolve()),
+  copyFile: jest.fn(() => Promise.resolve()),
   writeFile: jest.fn(() => Promise.resolve()),
 }));

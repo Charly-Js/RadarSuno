@@ -1,5 +1,14 @@
 import WifiManager from "react-native-wifi-reborn";
 
+type WifiScanEntry = {
+    SSID?: string;
+    ssid?: string;
+    BSSID?: string;
+    bssid?: string;
+    frequency?: number;
+    level?: number;
+};
+
 
 export default class WifiService {
 
@@ -154,6 +163,70 @@ export default class WifiService {
                 this.scanObservations.push(observation);
             }
         }
+
+        await this.refreshNearbyNetworks();
+
+    }
+
+    private static async refreshNearbyNetworks(): Promise<void> {
+
+        try {
+
+            const rawNetworks = await WifiManager.reScanAndLoadWifiList();
+
+            if (Array.isArray(rawNetworks)) {
+                this.mergeWifiScan(rawNetworks as WifiScanEntry[]);
+                return;
+            }
+
+        } catch {
+        }
+
+        try {
+
+            const rawNetworks = await WifiManager.loadWifiList();
+
+            if (Array.isArray(rawNetworks)) {
+                this.mergeWifiScan(rawNetworks as WifiScanEntry[]);
+            }
+
+        } catch {
+        }
+
+    }
+
+    private static mergeWifiScan(networks: WifiScanEntry[]): void {
+
+        const now = Date.now();
+
+        networks.forEach(network => {
+
+            const ssid = network.SSID || network.ssid || "WiFi oculto";
+            const bssid = network.BSSID || network.bssid || `wifi-${ssid}`;
+            const signalLevel = typeof network.level === "number"
+                ? network.level
+                : -100;
+            const observation = {
+                ssid,
+                bssid,
+                frequency: network.frequency || 2437,
+                signalLevel,
+                lastSeen: now
+            };
+            const existing = this.scanObservations.find(item => item.bssid === bssid);
+
+            if (existing) {
+                Object.assign(existing, observation);
+            } else {
+                this.scanObservations.push(observation);
+            }
+
+        });
+
+        this.scanObservations = this.scanObservations
+            .filter(item => now - item.lastSeen <= 30000)
+            .sort((a, b) => b.signalLevel - a.signalLevel)
+            .slice(0, 80);
 
     }
 

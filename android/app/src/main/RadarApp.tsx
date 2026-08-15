@@ -16,7 +16,7 @@ import { PermissionService } from "../services/PermissionService";
 import MissionLogService from "../services/MissionLogService";
 import MissionPdfService from "../services/MissionPdfService";
 import { GPSService } from "../services/GPSService";
-import { MissionOutcome, MissionRecord } from "../interfaces/MissionRecord";
+import { MissionEvidencePhoto, MissionOutcome, MissionRecord } from "../interfaces/MissionRecord";
 import { RadarTarget } from "../interfaces/RadarTarget";
 import { OperatorProfile } from "../interfaces/OperatorProfile";
 
@@ -186,6 +186,12 @@ const RadarApp = () => {
         }
     };
 
+    const handleClearMissionRecords = async () => {
+        await RadarController.clearMissionRecords();
+        setMissionRecords([]);
+        setErrorMessage("Registros de misión limpiados.");
+    };
+
     const requestPermissions = async () => {
         const granted = await PermissionService.requestAllPermissions();
         await refreshMissionStatus();
@@ -201,7 +207,41 @@ const RadarApp = () => {
                 AsyncStorage.getItem(OPERATOR_PROFILE_KEY)
             ]);
             setTermsAccepted(termsRaw === "true");
-            setOperatorProfile(operatorRaw ? JSON.parse(operatorRaw) : null);
+
+            // Migración de perfiles antiguos (sin operatorId ni nuevos campos).
+            if (operatorRaw) {
+                try {
+                    const parsed = JSON.parse(operatorRaw);
+                    if (!parsed.operatorId) {
+                        const migrated = {
+                            ...parsed,
+                            operatorId: `RS-${Math.random()
+                                .toString(36)
+                                .slice(2, 8)
+                                .toUpperCase()
+                                .replace(/[^A-Z0-9]/g, "")
+                                .padEnd(6, "X")}`,
+                            phone: parsed.phone ?? "",
+                            documentType: parsed.documentType ?? "Cédula de ciudadanía",
+                            city: parsed.city ?? "",
+                            teamName: parsed.teamName ?? parsed.organization ?? "Equipo sin nombre",
+                            language: parsed.language ?? "es"
+                        };
+                        await AsyncStorage.setItem(
+                            OPERATOR_PROFILE_KEY,
+                            JSON.stringify(migrated)
+                        );
+                        setOperatorProfile(migrated);
+                    } else {
+                        setOperatorProfile(parsed);
+                    }
+                } catch {
+                    setOperatorProfile(null);
+                }
+            } else {
+                setOperatorProfile(null);
+            }
+
             await refreshMissionStatus();
             setMissionRecords(await RadarController.loadMissionRecords());
             try {
@@ -281,9 +321,10 @@ const RadarApp = () => {
 
     const handleStop = async (
         outcome: MissionOutcome = "completed",
-        note?: string
+        note?: string,
+        evidencePhoto?: MissionEvidencePhoto | null
     ) => {
-        await RadarController.stop(outcome, note);
+        await RadarController.stop(outcome, note, evidencePhoto);
         setMissionRecords(await RadarController.loadMissionRecords());
         refreshStatus();
     };
@@ -365,6 +406,7 @@ const RadarApp = () => {
                         ignoredIds={ignoredIds}
                         missionRecords={missionRecords}
                         onExportMission={handleExportMission}
+                        onClearRecords={handleClearMissionRecords}
                     />
                 );
             case "calls":
@@ -375,7 +417,7 @@ const RadarApp = () => {
                 const radarStatus = {
                     ...status,
                     targets: visibleTargets,
-                    nearestTarget: visibleTargets.reduce<RadarTarget | null>(
+                    nearestTarget: (pinnedTargets.length > 0 ? pinnedTargets : visibleTargets).reduce<RadarTarget | null>(
                         (nearest, current) =>
                             !nearest || current.estimatedDistance < nearest.estimatedDistance
                                 ? current
@@ -398,6 +440,7 @@ const RadarApp = () => {
                         pinnedDestination={pinnedDestination}
                         distanceToPinnedTarget={distanceToPinnedTarget}
                         onSubmitRescueReport={handleSubmitRescueReport}
+                        operatorName={operatorProfile?.fullName}
                         pinnedRoute={pinnedRoute}
                     />
                 );
@@ -443,7 +486,12 @@ const RadarApp = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <Header online={running} />
+            <Header
+                online={running}
+                operatorName={operatorProfile?.fullName}
+                operatorId={operatorProfile?.operatorId}
+                teamName={operatorProfile?.teamName}
+            />
             <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}

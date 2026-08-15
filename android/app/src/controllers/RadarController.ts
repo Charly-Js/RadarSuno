@@ -4,7 +4,7 @@ import TriangulationEngine from "../algorithms/TriangulationEngine";
 import TargetFusionEngine from "../algorithms/TargetFusionEngine";
 import MissionEngine from "../mission/MissionEngine";
 import MissionLogService from "../services/MissionLogService";
-import { MissionOutcome } from "../interfaces/MissionRecord";
+import { MissionEvidencePhoto, MissionOutcome } from "../interfaces/MissionRecord";
 import { OperatorProfile } from "../interfaces/OperatorProfile";
 
 export default class RadarController {
@@ -37,10 +37,11 @@ export default class RadarController {
 
     static async stop(
         outcome: MissionOutcome = "completed",
-        note?: string
+        note?: string,
+        evidencePhoto?: MissionEvidencePhoto | null
     ): Promise<void> {
 
-        await MissionEngine.stopMission(outcome, note);
+        await MissionEngine.stopMission(outcome, note, evidencePhoto);
 
     }
 
@@ -197,6 +198,12 @@ export default class RadarController {
     static async loadMissionRecords() {
 
         return await MissionLogService.loadRecords();
+
+    }
+
+    static async clearMissionRecords() {
+
+        await MissionLogService.clearRecords();
 
     }
 

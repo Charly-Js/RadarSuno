@@ -72,15 +72,17 @@ export class GPSService {
 
         enableHighAccuracy: true,
 
-        distanceFilter: 1,
+        distanceFilter: 0,
 
         interval: 1000,
 
-        fastestInterval: 500,
+        fastestInterval: 250,
 
         forceRequestLocation: true,
 
-        showLocationDialog: true
+        showLocationDialog: true,
+
+        forceLocationManager: false
 
     };
 

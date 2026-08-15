@@ -9,6 +9,7 @@ interface HistoryScreenProps {
     ignoredIds: string[];
     missionRecords: MissionRecord[];
     onExportMission: (record: MissionRecord) => void;
+    onClearRecords: () => void;
 }
 
 export default function HistoryScreen({
@@ -16,7 +17,8 @@ export default function HistoryScreen({
     pinnedIds,
     ignoredIds,
     missionRecords,
-    onExportMission
+    onExportMission,
+    onClearRecords
 }: HistoryScreenProps) {
     const historyItems = [...targets]
         .sort((a, b) => b.lastSeen - a.lastSeen)
@@ -65,8 +67,15 @@ export default function HistoryScreen({
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-            <Text style={styles.sectionTitle}>Registros de misión</Text>
-            <Text style={styles.sectionSubtitle}>Cada cierre genera evidencia exportable de ruta, sensores, objetivos y estado.</Text>
+            <View style={styles.sectionHeader}>
+                <View style={styles.sectionTitleBlock}>
+                    <Text style={styles.sectionTitle}>Registros de misión</Text>
+                    <Text style={styles.sectionSubtitle}>Cada cierre genera evidencia exportable de ruta, sensores, objetivos y estado.</Text>
+                </View>
+                <TouchableOpacity style={styles.clearButton} onPress={onClearRecords}>
+                    <Text style={styles.clearText}>LIMPIAR</Text>
+                </TouchableOpacity>
+            </View>
             {missionRecords.length > 0 ? (
                 missionRecords.map(renderMission)
             ) : (
@@ -100,6 +109,15 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: "700",
         marginBottom: 4
+    },
+    sectionHeader: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        gap: 12
+    },
+    sectionTitleBlock: {
+        flex: 1
     },
     sectionSubtitle: {
         color: "#94A3B8",
@@ -161,6 +179,17 @@ const styles = StyleSheet.create({
         paddingVertical: 9
     },
     exportText: {
+        color: "#FFFFFF",
+        fontSize: 12,
+        fontWeight: "700"
+    },
+    clearButton: {
+        backgroundColor: "#7F1D1D",
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 9
+    },
+    clearText: {
         color: "#FFFFFF",
         fontSize: 12,
         fontWeight: "700"

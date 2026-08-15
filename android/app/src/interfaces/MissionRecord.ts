@@ -28,6 +28,13 @@ export interface MissionSensorSample {
     moving: boolean;
 }
 
+export interface MissionEvidencePhoto {
+    uri: string;
+    fileName: string;
+    capturedAt: number;
+    watermarkText: string;
+}
+
 export interface MissionRecord {
     id: string;
     status: "running" | "finished";
@@ -43,4 +50,5 @@ export interface MissionRecord {
     sensorSamples: MissionSensorSample[];
     targets: RadarTarget[];
     notes: string[];
+    evidencePhoto?: MissionEvidencePhoto | null;
 }

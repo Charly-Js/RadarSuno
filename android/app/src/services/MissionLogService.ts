@@ -1,7 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RadarTarget } from "../interfaces/RadarTarget";
-import { MissionOutcome, MissionRecord } from "../interfaces/MissionRecord";
+import { MissionEvidencePhoto, MissionOutcome, MissionRecord } from "../interfaces/MissionRecord";
 import { OperatorProfile } from "../interfaces/OperatorProfile";
+import MissionFileService from "./MissionFileService";
 
 const STORAGE_KEY = "@RC:mission_records";
 const ACTIVE_STORAGE_KEY = "@RC:active_mission_backup";
@@ -59,7 +60,8 @@ export default class MissionLogService {
             path: [],
             sensorSamples: [],
             targets: [],
-            notes: []
+            notes: [],
+            evidencePhoto: null
         };
 
         await this.persistActiveBackup();
@@ -145,7 +147,11 @@ export default class MissionLogService {
         await this.persistActiveBackup();
     }
 
-    static async finishMission(outcome: MissionOutcome, note?: string): Promise<MissionRecord | null> {
+    static async finishMission(
+        outcome: MissionOutcome,
+        note?: string,
+        evidencePhoto?: MissionEvidencePhoto | null
+    ): Promise<MissionRecord | null> {
         if (!this.activeRecord) {
             return null;
         }
@@ -159,12 +165,15 @@ export default class MissionLogService {
             outcome,
             endTime,
             elapsedTime: endTime - this.activeRecord.startTime,
-            notes: note ? [...this.activeRecord.notes, note] : [...this.activeRecord.notes]
+            notes: note ? [...this.activeRecord.notes, note] : [...this.activeRecord.notes],
+            evidencePhoto: evidencePhoto ?? this.activeRecord.evidencePhoto ?? null
         };
 
         this.records = [finishedRecord, ...this.records].slice(0, MAX_RECORDS);
         this.activeRecord = null;
         await this.persist();
+        await MissionFileService.persistMissionJson(finishedRecord);
+        await MissionFileService.persistGeneralIndex(this.records);
         await AsyncStorage.removeItem(ACTIVE_STORAGE_KEY);
 
         return finishedRecord;
@@ -173,6 +182,16 @@ export default class MissionLogService {
     static async persist(): Promise<void> {
         try {
             await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.records));
+        } catch {
+        }
+    }
+
+    static async clearRecords(): Promise<void> {
+        this.records = [];
+        this.loaded = true;
+
+        try {
+            await AsyncStorage.removeItem(STORAGE_KEY);
         } catch {
         }
     }
@@ -221,7 +240,8 @@ export default class MissionLogService {
             path: record.path,
             sensors: record.sensorSamples,
             targets: record.targets,
-            notes: record.notes
+            notes: record.notes,
+            evidencePhoto: record.evidencePhoto
         }, null, 2);
     }
 }

@@ -8,7 +8,7 @@ import HeatMapEngine from "../algorithms/HeatMapEngine";
 import TriangulationEngine from "../algorithms/TriangulationEngine";
 import TargetFusionEngine from "../algorithms/TargetFusionEngine";
 import MissionLogService from "../services/MissionLogService";
-import { MissionOutcome } from "../interfaces/MissionRecord";
+import { MissionEvidencePhoto, MissionOutcome } from "../interfaces/MissionRecord";
 import { OperatorProfile } from "../interfaces/OperatorProfile";
 
 export default class MissionEngine {
@@ -105,7 +105,8 @@ export default class MissionEngine {
 
     static async stopMission(
         outcome: MissionOutcome = "completed",
-        note?: string
+        note?: string,
+        evidencePhoto?: MissionEvidencePhoto | null
     ): Promise<void> {
 
         if (!this.running) {
@@ -137,7 +138,7 @@ export default class MissionEngine {
             pinnedTargetIds: this.pinnedTargetIds
         });
 
-        await MissionLogService.finishMission(outcome, note);
+        await MissionLogService.finishMission(outcome, note, evidencePhoto);
         
         this.destroy();
 

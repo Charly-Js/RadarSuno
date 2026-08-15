@@ -20,6 +20,7 @@ interface ServiceStatus {
         wifi: boolean;
         gps: boolean;
     };
+    permissionDetails?: Record<string, boolean>;
 }
 
 interface PermissionScreenProps {
@@ -82,6 +83,18 @@ export default function PermissionScreen({
                             <Text style={styles.rememberedText}>
                                 Bluetooth: {status.remembered.bluetooth ? "Sí" : "No"} · WiFi: {status.remembered.wifi ? "Sí" : "No"} · GPS: {status.remembered.gps ? "Sí" : "No"}
                             </Text>
+                        </View>
+                    ) : null}
+                    {status.permissionDetails ? (
+                        <View style={styles.detailBox}>
+                            {Object.entries(status.permissionDetails).map(([key, granted]) => (
+                                <View key={key} style={styles.statusRow}>
+                                    <Text style={styles.statusLabel}>{key}</Text>
+                                    <Text style={[styles.statusValue, granted ? styles.active : styles.inactive]}>
+                                        {granted ? "OK" : "Falta"}
+                                    </Text>
+                                </View>
+                            ))}
                         </View>
                     ) : null}
                 </View>
@@ -174,6 +187,12 @@ const styles = StyleSheet.create({
     rememberedText: {
         color: "#A5B4C3",
         fontSize: 13
+    },
+    detailBox: {
+        marginTop: 12,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: "#334155"
     },
     button: {
         width: "100%",
