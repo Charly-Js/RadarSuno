@@ -2,6 +2,11 @@
 
 ## Radar de apoyo para búsqueda y rescate
 
+> **Proyecto desarrollado con colaboración humana + inteligencia artificial**
+>
+> **Idea, dirección, decisiones funcionales y validación:** CharlyTVO  
+> **Arquitectura, razonamiento, implementación asistida y acompañamiento técnico:** herramientas de IA utilizadas durante el desarrollo.
+
 RADARSUR es una aplicación Android desarrollada con React Native y TypeScript como herramienta de apoyo para operaciones de búsqueda y rescate.
 
 El proyecto integra detección inalámbrica, GPS, sensores de orientación, representación visual tipo radar, alertas sonoras y registro local de misiones. Su objetivo es proporcionar información de apoyo al operador directamente desde un dispositivo Android, reduciendo la dependencia de un computador durante una misión.
@@ -9,6 +14,62 @@ El proyecto integra detección inalámbrica, GPS, sensores de orientación, repr
 > **Estado:** versión Release compilable y firmada, en etapa de pruebas y validación en dispositivo físico.
 
 > **Importante:** RADARSUR es una herramienta de apoyo. Las distancias y posiciones obtenidas mediante señales inalámbricas y sensores son aproximadas y no sustituyen equipos profesionales de localización ni los protocolos oficiales de búsqueda y rescate.
+
+---
+
+## Colaboración con herramientas de inteligencia artificial
+
+RADARSUR fue construido mediante un flujo de trabajo de **desarrollo asistido por múltiples sistemas de inteligencia artificial**, utilizados de manera complementaria y con continuidad de contexto entre herramientas.
+
+La participación de IA no reemplazó la dirección del proyecto. **CharlyTVO actuó como desarrollador, arquitecto funcional y responsable de las decisiones del producto:** definió la idea, los objetivos, las necesidades operativas, las pruebas en dispositivo y las decisiones sobre qué cambios incorporar.
+
+Las herramientas de IA actuaron como colaboradores técnicos para analizar problemas, proponer arquitectura, escribir y revisar código, depurar errores, estructurar documentación y refinar la implementación.
+
+### Herramientas utilizadas
+
+| Herramienta | Participación en el proyecto |
+|---|---|
+| **ChatGPT** | Guía principal del proceso. Ayudó a transformar la idea inicial en requisitos, arquitectura, flujo de trabajo, decisiones técnicas, depuración, pruebas y documentación. También ayudó a mantener el contexto general del proyecto y a convertir problemas observados en el dispositivo en tareas técnicas concretas. |
+| **OpenAI Codex** | Asistencia directa de programación: análisis del código existente, implementación de cambios, depuración, refactorización y apoyo durante la preparación del proyecto para Release. |
+| **Google Gemini** | Refinamiento y contraste de soluciones, revisión de implementaciones y apoyo en procesos que requerían continuar el trabajo manteniendo instrucciones y contexto detallados. |
+| **Claude Opus 4.6** | Utilizado durante la estructuración inicial del proyecto y para apoyar el razonamiento sobre arquitectura y organización de la solución. La referencia corresponde al modelo utilizado en esa etapa histórica del desarrollo. |
+
+El proyecto utilizó una estrategia deliberada de **trabajo cruzado entre modelos**: las instrucciones y especificaciones se mantuvieron suficientemente detalladas para poder continuar el desarrollo desde otra herramienta cuando una sesión terminaba. Esto permitió distribuir análisis, implementación y refinamiento sin perder la dirección técnica del proyecto.
+
+### El papel humano sigue siendo central
+
+La utilización de IA no significa que RADARSUR haya sido generado de manera autónoma.
+
+El proceso se planteó como una colaboración:
+
+```text
+IDEA Y NECESIDAD OPERATIVA
+          │
+          ▼
+     CharlyTVO
+  Dirección del proyecto
+          │
+          ▼
+ ┌─────────────────────────┐
+ │     SISTEMAS DE IA      │
+ ├─────────────────────────┤
+ │ ChatGPT  → guía         │
+ │ Codex    → programación │
+ │ Gemini   → refinamiento  │
+ │ Claude   → estructura    │
+ └─────────────────────────┘
+          │
+          ▼
+   Código + pruebas
+          │
+          ▼
+ VALIDACIÓN EN DISPOSITIVO
+          │
+          ▼
+       RADARSUR
+```
+
+Cada propuesta fue evaluada según las necesidades reales del proyecto. La integración final, las pruebas físicas, la aceptación de cambios y la dirección del producto corresponden al desarrollador humano.
 
 ---
 
@@ -317,6 +378,12 @@ keystore.properties
 ```
 
 El `.gitignore` del proyecto contempla la exclusión del material de firma.
+
+---
+
+## Capturas de la aplicación
+
+Las capturas de la interfaz y del flujo operativo se encuentran en [`docs/screenshots`](docs/screenshots/).
 
 ---
 
