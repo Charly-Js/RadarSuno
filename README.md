@@ -36,6 +36,10 @@ Las herramientas de IA actuaron como colaboradores técnicos para analizar probl
 
 El proyecto utilizó una estrategia deliberada de **trabajo cruzado entre modelos**: las instrucciones y especificaciones se mantuvieron suficientemente detalladas para poder continuar el desarrollo desde otra herramienta cuando una sesión terminaba. Esto permitió distribuir análisis, implementación y refinamiento sin perder la dirección técnica del proyecto.
 
+### Recursos de IA y limitaciones
+
+El desarrollo se realizó con los recursos de IA disponibles para el proyecto, incluyendo **modalidades gratuitas**. Por esta razón, determinadas etapas pudieron presentar pausas, límites de uso, cambios de disponibilidad o necesidad de trasladar el contexto entre herramientas. Esto forma parte de la historia real del desarrollo y no implica que RADARSUR haya sido desarrollado de manera autónoma por una IA.
+
 ### El papel humano sigue siendo central
 
 La utilización de IA no significa que RADARSUR haya sido generado de manera autónoma.
@@ -56,7 +60,7 @@ IDEA Y NECESIDAD OPERATIVA
  │ ChatGPT  → guía         │
  │ Codex    → programación │
  │ Gemini   → refinamiento  │
- │ Claude   → estructura    │
+ │ Claude   → estructura   │
  └─────────────────────────┘
           │
           ▼
@@ -70,6 +74,26 @@ IDEA Y NECESIDAD OPERATIVA
 ```
 
 Cada propuesta fue evaluada según las necesidades reales del proyecto. La integración final, las pruebas físicas, la aceptación de cambios y la dirección del producto corresponden al desarrollador humano.
+
+---
+
+## Licencia y código abierto
+
+RADARSUR se distribuye bajo la **MIT License**. Consulta el archivo [`LICENSE`](LICENSE) para conocer el texto completo de la licencia.
+
+La licencia permite utilizar, copiar, estudiar, modificar, integrar, redistribuir y crear trabajos derivados del código, incluyendo usos comerciales, siempre que se conserven los avisos de copyright y licencia establecidos por la MIT License.
+
+### Forks y versiones derivadas
+
+Se recomienda que cualquier persona u organización que quiera adaptar RADARSUR realice un **fork o una copia independiente del repositorio** y trabaje sobre esa versión. Esto permite conservar una referencia clara de la versión oficial y evita confundir modificaciones de terceros con el proyecto original.
+
+Las versiones modificadas, forks, adaptaciones, integraciones o redistribuciones realizadas por terceros quedan bajo responsabilidad de sus respectivos autores o distribuidores. Las modificaciones de terceros no representan automáticamente la versión oficial de RADARSUR ni la posición de sus autores originales.
+
+Se agradece mantener una atribución visible al proyecto original, a **CharlyTVO / YouBriefsoft** y al repositorio oficial cuando se redistribuyan o presenten versiones derivadas. La obligación mínima de atribución será la establecida por la MIT License.
+
+El repositorio oficial es:
+
+https://github.com/pinzonc1/RadarSuno
 
 ---
 
@@ -330,6 +354,7 @@ Si existe una instalación anterior de `com.rc` firmada con una clave diferente,
 - [x] Keystore privado para firma Release
 - [x] Generación del APK Release
 - [x] Código sincronizado con GitHub
+- [x] Licencia MIT
 
 ### En validación
 
@@ -379,6 +404,8 @@ keystore.properties
 
 El `.gitignore` del proyecto contempla la exclusión del material de firma.
 
+Para conocer las condiciones completas de uso, privacidad, limitaciones, desarrollo híbrido humano-IA y responsabilidades, consulta [`TermsScreen.tsx`](android/app/src/screens/TermsScreen.tsx), que contiene los términos presentados dentro de la aplicación.
+
 ---
 
 ## Capturas de la aplicación
@@ -387,9 +414,7 @@ Las capturas de la interfaz y del flujo operativo se encuentran en [`docs/screen
 
 ---
 
-## Repositorio
-
-Repositorio oficial:
+## Repositorio oficial
 
 https://github.com/pinzonc1/RadarSuno
 
@@ -410,3 +435,19 @@ Las señales Bluetooth y Wi-Fi pueden verse afectadas por obstáculos, interfere
 Por lo tanto, las distancias y posiciones mostradas deben considerarse **aproximadas**. RADARSUR no debe utilizarse como único medio para determinar la ubicación de una persona u objetivo en una situación real de emergencia.
 
 La aplicación debe complementar los protocolos, procedimientos y equipos profesionales correspondientes.
+
+---
+
+## Contribuciones y mejoras
+
+RADARSUR es un proyecto abierto y se reciben propuestas de mejora. Si deseas colaborar, puedes realizar un fork, desarrollar cambios en tu propia copia y enviar un Pull Request al repositorio oficial.
+
+Antes de proponer cambios que puedan afectar funciones críticas, seguridad, privacidad o comportamiento operativo, revisa la documentación y los términos de uso del proyecto.
+
+Las contribuciones aceptadas pueden incorporarse a futuras versiones oficiales. La incorporación de una contribución no convierte al contribuyente en responsable de todo el proyecto ni transfiere automáticamente derechos sobre otras partes del código.
+
+---
+
+## Nota legal
+
+Este README es documentación del proyecto y no sustituye asesoramiento jurídico profesional. Los términos de uso de RADARSUR deben interpretarse junto con la licencia aplicable y la legislación vigente. Ninguna disposición pretende excluir derechos, garantías o responsabilidades que sean irrenunciables conforme a la legislación aplicable.
